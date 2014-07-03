@@ -477,7 +477,15 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
     protected static function getProcessedAndExpectedDirs()
     {
         $path = static::getPathToTestDirectory();
-        return array($path . '/processed/', $path . '/expected/');
+        $processedPath = $path . '/processed/';
+
+        if (!is_writable($pathProcessed)) {
+            $this->fail('To run the tests, you need to give write permissions to the following directory (create it if '
+                      . 'it doesn\'t exist).<code><br/>mkdir ' . $pathProcessed . '<br/>chmod 777 ' . $pathProcessed
+                      . '</code><br/>');
+        }
+
+        return array($processedPath, $path . '/expected/');
     }
 
     private function getProcessedAndExpectedPaths($testName, $testId, $format = null, $compareAgainst = false)
@@ -614,8 +622,6 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
         }
 
         $testSuffix = isset($params['testSuffix']) ? $params['testSuffix'] : '';
-
-        list($processedPath, $expectedPath) = static::getProcessedAndExpectedDirs();
 
         $testRequests = new TestRequestCollection($api, $params, $processedPath, $expectedPath, $this->apiToCall, $this->apiNotToCall);
         $requestUrls = $testRequests->getRequestUrls();

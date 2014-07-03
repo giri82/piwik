@@ -47,10 +47,8 @@ class TestRequestCollection
     /**
      * TODO
      */
-    public function __construct($api, $params, $processedPath, $expectedPath, $apiToCall, $apiNotToCall)
+    public function __construct($api, $params, $apiToCall, $apiNotToCall)
     {
-        $this->processedPath = $processedPath;
-        $this->expectedPath = $expectedPath;
         $this->apiToCall = $apiToCall;
         $this->apiNotToCall = $apiNotToCall;
 
@@ -103,8 +101,6 @@ class TestRequestCollection
                                         $abandonedCarts = false, $idGoal = false, $apiModule = false, $apiAction = false,
                                         $otherRequestParameters = array(), $supertableApi = false, $fileExtension = false)
     {
-        list($pathProcessed, $pathExpected) = array($this->processedPath, $this->expectedPath);
-
         if ($periods === false) {
             $periods = 'day';
         }
@@ -113,9 +109,6 @@ class TestRequestCollection
         }
         if (!is_array($formats)) {
             $formats = array($formats);
-        }
-        if (!is_writable($pathProcessed)) {
-            $this->fail('To run the tests, you need to give write permissions to the following directory (create it if it doesn\'t exist).<code><br/>mkdir ' . $pathProcessed . '<br/>chmod 777 ' . $pathProcessed . '</code><br/>');
         }
         $parametersToSet = array(
             'idSite'         => $idSite,
