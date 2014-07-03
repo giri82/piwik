@@ -309,17 +309,16 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
             $this->getProcessedAndExpectedPaths($testName, $apiId, $format = null, $compareAgainst);
 
         $testRequest = new TestRequest($requestUrl);
-
         $response = $testRequest->process();
+
         $processedResponse = new TestRequestResponse($response, $params, $requestUrl);
+        if (empty($compareAgainst)) {
+            $processedResponse->save($processedFilePath);
+        }
 
         $expected = $this->loadExpectedFile($expectedFilePath);
 
         if (empty($expected)) {
-            if (empty($compareAgainst)) {
-                file_put_contents($processedFilePath, $response);
-            }
-
             print("The expected file is not found at '$expectedFilePath'. The Processed response was:");
             print("\n----------------------------\n\n");
             var_dump($response);
@@ -329,15 +328,11 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
 
         $expectedResponse = new TestRequestResponse($expected, $params, $requestUrl);
 
-        if (empty($compareAgainst)) {
-            file_put_contents($processedFilePath, $response);
-        }
-
         try {
             if ($requestUrl['format'] == 'xml') {
                 $this->assertXmlStringEqualsXmlString($expectedResponse->getResponseText(), $processedResponse->getResponseText(), "Differences with expected in: $processedFilePath");
             } else {
-                $this->assertEquals(strlen($expectedResponse->getResponseText()), strlen($processedResponse->getResponseText()), "Differences with expected in: $processedFilePath");
+                $this->assertEquals(strlen($expectedResponse->getResponseText()), strlen($processedResponse->getResponseText()), "Different file length than expected in: $processedFilePath");
                 $this->assertEquals($expectedResponse->getResponseText(), $processedResponse->getResponseText(), "Differences with expected in: $processedFilePath");
             }
 
