@@ -98,7 +98,7 @@ class Test_Piwik_Integration_BackwardsCompatibility1XTest extends IntegrationTes
 
                                // the Action.getPageTitles test fails for unknown reason, so skipping it
                                // eg. https://travis-ci.org/piwik/piwik/jobs/24449365
-                               'skipGetPageTitles' => true )),
+                               'apiNotToCall' => array('Action.getPageTitles') )),
 
             array('VisitFrequency.get', array('idSite' => $idSite, 'date' => '2012-03-03', 'setDateLastN' => true,
                                               'disableArchiving' => true, 'testSuffix' => '_multipleDates')),

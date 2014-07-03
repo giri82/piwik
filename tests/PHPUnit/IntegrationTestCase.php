@@ -18,6 +18,7 @@ use Piwik\ReportRenderer;
 use Piwik\Translate;
 use Piwik\UrlHelper;
 use Piwik\Tests\Impl\TestRequestCollection;
+use Piwik\Tests\Impl\TestRequest;
 
 require_once PIWIK_INCLUDE_PATH . '/libs/PiwikTracker/PiwikTracker.php';
 
@@ -303,22 +304,19 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
 
     protected function _testApiUrl($testName, $apiId, $requestUrl, $compareAgainst, $xmlFieldsToRemove = array())
     {
-        $isTestLogImportReverseChronological = strpos($testName, 'ImportedInRandomOrderTest') === false;
-        $isLiveMustDeleteDates = (strpos($requestUrl, 'Live.getLastVisits') !== false
-                                  || strpos($requestUrl, 'Live.getVisitorProfile') !== false)
-                                // except for that particular test that we care about dates!
-                                && $isTestLogImportReverseChronological;
-
-        $request = new Request($requestUrl);
-        $dateTime = Common::getRequestVar('date', '', 'string', UrlHelper::getArrayFromQueryString($requestUrl));
+        $testRequest = new TestRequest($requestUrl);
+        $response = $testRequest->process();
 
         list($processedFilePath, $expectedFilePath) =
             $this->getProcessedAndExpectedPaths($testName, $apiId, $format = null, $compareAgainst);
 
-        // Cast as string is important. For example when calling
-        // with format=original, objects or php arrays can be returned.
-        // we also hide errors to prevent the 'headers already sent' in the ResponseBuilder (which sends Excel headers multiple times eg.)
-        $response = (string)$request->process();
+        $dateTime = $requestUrl['date'];
+
+        $isTestLogImportReverseChronological = strpos($testName, 'ImportedInRandomOrderTest') === false;
+        $isLiveMustDeleteDates = ($requestUrl['method'] == 'Live.getLastVisits'
+                                  || $requestUrl['method'] == 'Live.getVisitorProfile')
+                                // except for that particular test that we care about dates!
+                                && $isTestLogImportReverseChronological;
 
         if ($isLiveMustDeleteDates) {
             $response = $this->removeAllLiveDatesFromXml($response);
@@ -355,7 +353,7 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
             || strpos($dateTime, 'today') !== false
             || strpos($dateTime, 'now') !== false
         ) {
-            if (strpos($requestUrl, 'API.getProcessedReport') !== false) {
+            if ($requestUrl['method'] == 'API.getProcessedReport') {
                 $expected = $this->removePrettyDateFromXml($expected);
                 $response = $this->removePrettyDateFromXml($response);
             }
@@ -363,7 +361,7 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
             $expected = $this->removeXmlElement($expected, 'visitServerHour');
             $response = $this->removeXmlElement($response, 'visitServerHour');
 
-            if (strpos($requestUrl, 'date=') !== false) {
+            if (!empty($requestUrl['date'])) {
                 $regex = "/date=[-0-9,%Ca-z]+/"; // need to remove %2C which is encoded ,
                 $expected = preg_replace($regex, 'date=', $expected);
                 $response = preg_replace($regex, 'date=', $response);
@@ -371,7 +369,7 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
         }
 
         // if idSubtable is in request URL, make sure idSubtable values are not in any urls
-        if (strpos($requestUrl, 'idSubtable=') !== false) {
+        if (!empty($requestUrl['idSubtable'])) {
             $regex = "/idSubtable=[0-9]+/";
             $expected = preg_replace($regex, 'idSubtable=', $expected);
             $response = preg_replace($regex, 'idSubtable=', $response);
@@ -393,7 +391,7 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
         }
 
         try {
-            if (strpos($requestUrl, 'format=xml') !== false) {
+            if ($requestUrl['format'] == 'xml') {
                 $this->assertXmlStringEqualsXmlString($expected, $response, "Differences with expected in: $processedFilePath");
             } else {
                 $this->assertEquals(strlen($expected), strlen($response), "Differences with expected in: $processedFilePath");
@@ -479,9 +477,9 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
         $path = static::getPathToTestDirectory();
         $processedPath = $path . '/processed/';
 
-        if (!is_writable($pathProcessed)) {
+        if (!is_writable($processedPath)) {
             $this->fail('To run the tests, you need to give write permissions to the following directory (create it if '
-                      . 'it doesn\'t exist).<code><br/>mkdir ' . $pathProcessed . '<br/>chmod 777 ' . $pathProcessed
+                      . 'it doesn\'t exist).<code><br/>mkdir ' . $processedPath . '<br/>chmod 777 ' . $processedPath
                       . '</code><br/>');
         }
 
@@ -623,20 +621,12 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
 
         $testSuffix = isset($params['testSuffix']) ? $params['testSuffix'] : '';
 
-        $testRequests = new TestRequestCollection($api, $params, $processedPath, $expectedPath, $this->apiToCall, $this->apiNotToCall);
-        $requestUrls = $testRequests->getRequestUrls();
+        $testRequests = new TestRequestCollection($api, $params, $this->apiToCall, $this->apiNotToCall);
 
         $compareAgainst = isset($params['compareAgainst']) ? ('test_' . $params['compareAgainst']) : false;
         $xmlFieldsToRemove = @$params['xmlFieldsToRemove'];
 
-        foreach ($requestUrls as $apiId => $requestUrl) {
-            // this is a hack
-            if(isset($params['skipGetPageTitles'])) {
-                if($apiId == 'Actions.getPageTitles_day.xml') {
-                    continue;
-                }
-            }
-
+        foreach ($testRequests->getRequestUrls() as $apiId => $requestUrl) {
             $this->_testApiUrl($testName . $testSuffix, $apiId, $requestUrl, $compareAgainst, $xmlFieldsToRemove);
         }
 

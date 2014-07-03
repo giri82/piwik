@@ -18,8 +18,19 @@ class TestRequest extends Request
     /**
      * TODO
      */
-    public function __construct($testRequestParams)
+    public function __construct($requestUrl)
     {
-        // TODO
+        parent::__construct($requestUrl);
+    }
+
+    /**
+     * TODO
+     */
+    public function process()
+    {
+        // Cast as string is important. For example when calling
+        // with format=original, objects or php arrays can be returned.
+        // we also hide errors to prevent the 'headers already sent' in the ResponseBuilder (which sends Excel headers multiple times eg.)
+        return (string)parent::process();
     }
 }

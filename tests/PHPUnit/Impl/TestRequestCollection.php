@@ -13,6 +13,7 @@ use Piwik\API\Proxy;
 use Piwik\API\Request;
 use \Exception;
 use \PHPUnit_Framework_Assert;
+use Piwik\UrlHelper;
 
 /**
  * TODO
@@ -68,6 +69,10 @@ class TestRequestCollection
             isset($params['otherRequestParameters']) ? $params['otherRequestParameters'] : array(),
             isset($params['supertableApi']) ? $params['supertableApi'] : false,
             isset($params['fileExtension']) ? $params['fileExtension'] : false);
+
+        if (!empty($params['apiNotToCall'])) {
+            $this->apiNotToCall = array_merge($this->apiNotToCall, $params['apiNotToCall']);
+        }
     }
 
     public function getRequestUrls()
@@ -299,7 +304,7 @@ class TestRequestCollection
                             $apiRequestId .= '.' . $fileExtension;
                         }
 
-                        $requestUrls[$apiRequestId] = $exampleUrl;
+                        $requestUrls[$apiRequestId] = UrlHelper::getArrayFromQueryString($exampleUrl);
                     }
                 }
             }

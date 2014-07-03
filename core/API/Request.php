@@ -95,7 +95,13 @@ class Request
             if (is_array($request)) {
                 $url = array();
                 foreach ($request as $key => $value) {
-                    $url[] = $key . "=" . $value;
+                    if (is_array($value)) {
+                        foreach ($value as $element) {
+                            $url[] = $key . "[]=" . $element;
+                        }
+                    } else {
+                        $url[] = $key . "=" . $value;
+                    }
                 }
                 $request = implode("&", $url);
             }
