@@ -335,17 +335,17 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
 
         try {
             if ($requestUrl['format'] == 'xml') {
-                $this->assertXmlStringEqualsXmlString($expected, $response, "Differences with expected in: $processedFilePath");
+                $this->assertXmlStringEqualsXmlString($expectedResponse->getResponseText(), $processedResponse->getResponseText(), "Differences with expected in: $processedFilePath");
             } else {
-                $this->assertEquals(strlen($expected), strlen($response), "Differences with expected in: $processedFilePath");
-                $this->assertEquals($expected, $response, "Differences with expected in: $processedFilePath");
+                $this->assertEquals(strlen($expectedResponse->getResponseText()), strlen($processedResponse->getResponseText()), "Differences with expected in: $processedFilePath");
+                $this->assertEquals($expectedResponse->getResponseText(), $processedResponse->getResponseText(), "Differences with expected in: $processedFilePath");
             }
 
             if (trim($response) == trim($expected)
                 && empty($compareAgainst)
-                && trim($expectedContent) != trim($expected)
+                && trim($expectedResponse->getResponseText()) != trim($expected)
             ) {
-                file_put_contents($expectedFilePath, $expected);
+                file_put_contents($expectedFilePath, $expectedResponse->getResponseText());
             }
         } catch (Exception $ex) {
             $this->comparisonFailures[] = $ex;
