@@ -11,9 +11,9 @@ namespace Piwik\Tests\Impl;
 use Piwik\API\DocumentationGenerator;
 use Piwik\API\Proxy;
 use Piwik\API\Request;
+use Piwik\UrlHelper;
 use \Exception;
 use \PHPUnit_Framework_Assert;
-use Piwik\UrlHelper;
 
 /**
  * TODO

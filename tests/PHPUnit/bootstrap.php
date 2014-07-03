@@ -41,7 +41,6 @@ require_once PIWIK_INCLUDE_PATH . '/tests/PHPUnit/ConsoleCommandTestCase.php';
 require_once PIWIK_INCLUDE_PATH . '/tests/PHPUnit/FakeAccess.php';
 require_once PIWIK_INCLUDE_PATH . '/tests/PHPUnit/MockPiwikOption.php';
 require_once PIWIK_INCLUDE_PATH . '/tests/PHPUnit/TestingEnvironment.php';
-require_once PIWIK_INCLUDE_PATH . '/tests/PHPUnit/Impl/TestRequest.php';
 require_once PIWIK_INCLUDE_PATH . '/tests/PHPUnit/Impl/TestRequestCollection.php';
 require_once PIWIK_INCLUDE_PATH . '/tests/PHPUnit/Impl/TestRequestResponse.php';
 

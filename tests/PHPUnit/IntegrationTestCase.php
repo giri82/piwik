@@ -20,6 +20,7 @@ use Piwik\UrlHelper;
 use Piwik\Tests\Impl\TestRequestCollection;
 use Piwik\Tests\Impl\TestRequest;
 use Piwik\Tests\Impl\TestRequestResponse;
+use \Exception;
 
 require_once PIWIK_INCLUDE_PATH . '/libs/PiwikTracker/PiwikTracker.php';
 
@@ -308,40 +309,26 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
         list($processedFilePath, $expectedFilePath) =
             $this->getProcessedAndExpectedPaths($testName, $apiId, $format = null, $compareAgainst);
 
-        $testRequest = new TestRequest($requestUrl);
-        $response = $testRequest->process();
-
-        $processedResponse = new TestRequestResponse($response, $params, $requestUrl);
+        $processedResponse = TestRequestResponse::loadFromApi($params, $requestUrl);
         if (empty($compareAgainst)) {
             $processedResponse->save($processedFilePath);
         }
 
-        $expected = $this->loadExpectedFile($expectedFilePath);
+        try {
+            $expectedResponse = TestRequestResponse::loadFromFile($expectedFilePath, $params, $requestUrl);
+        } catch (Exception $ex) {
+            $this->missingExpectedFiles[] = $expectedFilePath;
 
-        if (empty($expected)) {
             print("The expected file is not found at '$expectedFilePath'. The Processed response was:");
             print("\n----------------------------\n\n");
-            var_dump($response);
+            var_dump($processedResponse->getResponseText());
             print("\n----------------------------\n");
+
             return;
         }
 
-        $expectedResponse = new TestRequestResponse($expected, $params, $requestUrl);
-
         try {
-            if ($requestUrl['format'] == 'xml') {
-                $this->assertXmlStringEqualsXmlString($expectedResponse->getResponseText(), $processedResponse->getResponseText(), "Differences with expected in: $processedFilePath");
-            } else {
-                $this->assertEquals(strlen($expectedResponse->getResponseText()), strlen($processedResponse->getResponseText()), "Different file length than expected in: $processedFilePath");
-                $this->assertEquals($expectedResponse->getResponseText(), $processedResponse->getResponseText(), "Differences with expected in: $processedFilePath");
-            }
-
-            if (trim($response) == trim($expected)
-                && empty($compareAgainst)
-                && trim($expectedResponse->getResponseText()) != trim($expected)
-            ) {
-                file_put_contents($expectedFilePath, $expectedResponse->getResponseText());
-            }
+            TestRequestResponse::assertEquals($expectedResponse, $processedResponse, "Differences with expected in '$processedFilePath'");
         } catch (Exception $ex) {
             $this->comparisonFailures[] = $ex;
         }
@@ -383,17 +370,6 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
         list($processedDir, $expectedDir) = static::getProcessedAndExpectedDirs();
 
         return array($processedDir . $processedFilename, $expectedDir . $expectedFilename);
-    }
-
-    private function loadExpectedFile($filePath)
-    {
-        $result = @file_get_contents($filePath);
-        if (empty($result)) {
-            $expectedDir = dirname($filePath);
-            $this->missingExpectedFiles[] = $filePath;
-            return null;
-        }
-        return $result;
     }
 
     /**
