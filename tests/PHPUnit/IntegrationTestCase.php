@@ -19,6 +19,7 @@ use Piwik\Translate;
 use Piwik\UrlHelper;
 use Piwik\Tests\Impl\TestRequestCollection;
 use Piwik\Tests\Impl\TestRequest;
+use Piwik\Tests\Impl\TestRequestResponse;
 
 require_once PIWIK_INCLUDE_PATH . '/libs/PiwikTracker/PiwikTracker.php';
 
@@ -302,34 +303,17 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
         return $apiCalls;
     }
 
-    protected function _testApiUrl($testName, $apiId, $requestUrl, $compareAgainst, $xmlFieldsToRemove = array())
+    protected function _testApiUrl($testName, $apiId, $requestUrl, $compareAgainst, $xmlFieldsToRemove = array(), $params = array())
     {
-        $testRequest = new TestRequest($requestUrl);
-        $response = $testRequest->process();
-
         list($processedFilePath, $expectedFilePath) =
             $this->getProcessedAndExpectedPaths($testName, $apiId, $format = null, $compareAgainst);
 
-        $dateTime = $requestUrl['date'];
+        $testRequest = new TestRequest($requestUrl);
 
-        $isTestLogImportReverseChronological = strpos($testName, 'ImportedInRandomOrderTest') === false;
-        $isLiveMustDeleteDates = ($requestUrl['method'] == 'Live.getLastVisits'
-                                  || $requestUrl['method'] == 'Live.getVisitorProfile')
-                                // except for that particular test that we care about dates!
-                                && $isTestLogImportReverseChronological;
-
-        if ($isLiveMustDeleteDates) {
-            $response = $this->removeAllLiveDatesFromXml($response);
-        }
-        $response = $this->normalizePdfContent($response);
-
-        if (!empty($xmlFieldsToRemove)) {
-            $response = $this->removeXmlFields($response, $xmlFieldsToRemove);
-        }
+        $response = $testRequest->process();
+        $processedResponse = new TestRequestResponse($response, $params, $requestUrl);
 
         $expected = $this->loadExpectedFile($expectedFilePath);
-        $expectedContent = $expected;
-        $expected = $this->normalizePdfContent($expected);
 
         if (empty($expected)) {
             if (empty($compareAgainst)) {
@@ -343,48 +327,7 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
             return;
         }
 
-        $expected = $this->removeXmlElement($expected, 'idsubdatatable', $testNotSmallAfter = false);
-        $response = $this->removeXmlElement($response, 'idsubdatatable', $testNotSmallAfter = false);
-
-        if ($isLiveMustDeleteDates) {
-            $expected = $this->removeAllLiveDatesFromXml($expected);
-        } // If date=lastN the <prettyDate> element will change each day, we remove XML element before comparison
-        elseif (strpos($dateTime, 'last') !== false
-            || strpos($dateTime, 'today') !== false
-            || strpos($dateTime, 'now') !== false
-        ) {
-            if ($requestUrl['method'] == 'API.getProcessedReport') {
-                $expected = $this->removePrettyDateFromXml($expected);
-                $response = $this->removePrettyDateFromXml($response);
-            }
-
-            $expected = $this->removeXmlElement($expected, 'visitServerHour');
-            $response = $this->removeXmlElement($response, 'visitServerHour');
-
-            if (!empty($requestUrl['date'])) {
-                $regex = "/date=[-0-9,%Ca-z]+/"; // need to remove %2C which is encoded ,
-                $expected = preg_replace($regex, 'date=', $expected);
-                $response = preg_replace($regex, 'date=', $response);
-            }
-        }
-
-        // if idSubtable is in request URL, make sure idSubtable values are not in any urls
-        if (!empty($requestUrl['idSubtable'])) {
-            $regex = "/idSubtable=[0-9]+/";
-            $expected = preg_replace($regex, 'idSubtable=', $expected);
-            $response = preg_replace($regex, 'idSubtable=', $response);
-        }
-
-        // Do not test for TRUNCATE(SUM()) returning .00 on mysqli since this is not working
-        // http://bugs.php.net/bug.php?id=54508
-        $expected = str_replace('.000000</l', '</l', $expected); //lat/long
-        $response = str_replace('.000000</l', '</l', $response); //lat/long
-        $expected = str_replace('.00</revenue>', '</revenue>', $expected);
-        $response = str_replace('.00</revenue>', '</revenue>', $response);
-        $response = str_replace('.1</revenue>', '</revenue>', $response);
-        $expected = str_replace('.1</revenue>', '</revenue>', $expected);
-        $expected = str_replace('.11</revenue>', '</revenue>', $expected);
-        $response = str_replace('.11</revenue>', '</revenue>', $response);
+        $expectedResponse = new TestRequestResponse($expected, $params, $requestUrl);
 
         if (empty($compareAgainst)) {
             file_put_contents($processedFilePath, $response);
@@ -400,10 +343,9 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
 
             if (trim($response) == trim($expected)
                 && empty($compareAgainst)
+                && trim($expectedContent) != trim($expected)
             ) {
-                if(trim($expectedContent) != trim($expected)) {
-                    file_put_contents($expectedFilePath, $expected);
-                }
+                file_put_contents($expectedFilePath, $expected);
             }
         } catch (Exception $ex) {
             $this->comparisonFailures[] = $ex;
@@ -417,59 +359,6 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
         }
         $this->assertTrue(stripos($response, 'error') === false, "error in $response");
         $this->assertTrue(stripos($response, 'exception') === false, "exception in $response");
-    }
-
-    protected function removeAllLiveDatesFromXml($input)
-    {
-        $toRemove = array(
-            'serverDate',
-            'firstActionTimestamp',
-            'lastActionTimestamp',
-            'lastActionDateTime',
-            'serverTimestamp',
-            'serverTimePretty',
-            'serverDatePretty',
-            'serverDatePrettyFirstAction',
-            'serverTimePrettyFirstAction',
-            'goalTimePretty',
-            'serverTimePretty',
-            'visitorId',
-            'nextVisitorId',
-            'previousVisitorId',
-            'visitServerHour',
-            'date',
-            'prettyDate',
-            'serverDateTimePrettyFirstAction'
-        );
-        return $this->removeXmlFields($input, $toRemove);
-    }
-
-    protected function removeXmlFields($input, $toRemove)
-    {
-        foreach ($toRemove as $xml) {
-            $input = $this->removeXmlElement($input, $xml);
-        }
-        return $input;
-    }
-
-    protected function removePrettyDateFromXml($input)
-    {
-        return $this->removeXmlElement($input, 'prettyDate');
-    }
-
-    protected function removeXmlElement($input, $xmlElement, $testNotSmallAfter = true)
-    {
-        // Only raise error if there was some data before
-        $testNotSmallAfter = strlen($input > 100) && $testNotSmallAfter;
-
-        $oldInput = $input;
-        $input = preg_replace('/(<' . $xmlElement . '>.+?<\/' . $xmlElement . '>)/', '', $input);
-
-        //check we didn't delete the whole string
-        if ($testNotSmallAfter && $input != $oldInput) {
-            $this->assertTrue(strlen($input) > 100);
-        }
-        return $input;
     }
 
     protected static function getProcessedAndExpectedDirs()
@@ -627,7 +516,7 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
         $xmlFieldsToRemove = @$params['xmlFieldsToRemove'];
 
         foreach ($testRequests->getRequestUrls() as $apiId => $requestUrl) {
-            $this->_testApiUrl($testName . $testSuffix, $apiId, $requestUrl, $compareAgainst, $xmlFieldsToRemove);
+            $this->_testApiUrl($testName . $testSuffix, $apiId, $requestUrl, $compareAgainst, $xmlFieldsToRemove, $params);
         }
 
         // Restore normal purge behavior
@@ -765,27 +654,5 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
         }
 
         ArchiveTableCreator::refreshTableList($forceReload = true);
-    }
-
-    /**
-     * Removes content from PDF binary the content that changes with the datetime or other random Ids
-     */
-    protected function normalizePdfContent($response)
-    {
-        // normalize date markups and document ID in pdf files :
-        // - /LastModified (D:20120820204023+00'00')
-        // - /CreationDate (D:20120820202226+00'00')
-        // - /ModDate (D:20120820202226+00'00')
-        // - /M (D:20120820202226+00'00')
-        // - /ID [ <0f5cc387dc28c0e13e682197f485fe65> <0f5cc387dc28c0e13e682197f485fe65> ]
-        $response = preg_replace('/\(D:[0-9]{14}/', '(D:19700101000000', $response);
-        $response = preg_replace('/\/ID \[ <.*> ]/', '', $response);
-        $response = preg_replace('/\/id:\[ <.*> ]/', '', $response);
-        $response = $this->removeXmlElement($response, "xmp:CreateDate");
-        $response = $this->removeXmlElement($response, "xmp:ModifyDate");
-        $response = $this->removeXmlElement($response, "xmp:MetadataDate");
-        $response = $this->removeXmlElement($response, "xmpMM:DocumentID");
-        $response = $this->removeXmlElement($response, "xmpMM:InstanceID");
-        return $response;
     }
 }
