@@ -17,6 +17,8 @@ use Piwik\Archive;
  * - In a returning visit, tracks a Goal conversion
  *   URL matching, with custom referrer and keyword
  *   NO cookie support
+ *
+ * @group OneVisitorTwoVisitsTest
  */
 class Test_Piwik_Integration_OneVisitorTwoVisits extends IntegrationTestCase
 {
