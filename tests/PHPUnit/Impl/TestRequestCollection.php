@@ -8,6 +8,12 @@
 
 namespace Piwik\Tests\Impl;
 
+use Piwik\API\DocumentationGenerator;
+use Piwik\API\Proxy;
+use Piwik\API\Request;
+use \Exception;
+use \PHPUnit_Framework_Assert;
+
 /**
  * TODO
  */
@@ -21,8 +27,33 @@ class TestRequestCollection
     /**
      * TODO
      */
-    public function __construct($api, $params)
+    private $processedPath;
+
+    /**
+     * TODO
+     */
+    private $expectedPath;
+
+    /**
+     * TODO
+     */
+    private $apiToCall;
+
+    /**
+     * TODO
+     */
+    private $apiNotToCall;
+
+    /**
+     * TODO
+     */
+    public function __construct($api, $params, $processedPath, $expectedPath, $apiToCall, $apiNotToCall)
     {
+        $this->processedPath = $processedPath;
+        $this->expectedPath = $expectedPath;
+        $this->apiToCall = $apiToCall;
+        $this->apiNotToCall = $apiNotToCall;
+
         $this->requestUrls = $this->_generateApiUrls(
             isset($params['format']) ? $params['format'] : 'xml',
             isset($params['idSite']) ? $params['idSite'] : false,
@@ -41,6 +72,10 @@ class TestRequestCollection
             isset($params['fileExtension']) ? $params['fileExtension'] : false);
     }
 
+    public function getRequestUrls()
+    {
+        return $this->requestUrls;
+    }
 
     /**
      * Will return all api urls for the given data
@@ -68,7 +103,7 @@ class TestRequestCollection
                                         $abandonedCarts = false, $idGoal = false, $apiModule = false, $apiAction = false,
                                         $otherRequestParameters = array(), $supertableApi = false, $fileExtension = false)
     {
-        list($pathProcessed, $pathExpected) = static::getProcessedAndExpectedDirs();
+        list($pathProcessed, $pathExpected) = array($this->processedPath, $this->expectedPath);
 
         if ($periods === false) {
             $periods = 'day';
@@ -277,5 +312,16 @@ class TestRequestCollection
             }
         }
         return $requestUrls;
+    }
+
+    // TODO: duplicated code (also in IntegrationTestCase)
+    protected function checkRequestResponse($response)
+    {
+        if(!is_string($response)) {
+            $response = json_encode($response);
+        }
+
+        PHPUnit_Framework_Assert::assertTrue(stripos($response, 'error') === false, "error in $response");
+        PHPUnit_Framework_Assert::assertTrue(stripos($response, 'exception') === false, "exception in $response");
     }
 }

@@ -615,7 +615,9 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
 
         $testSuffix = isset($params['testSuffix']) ? $params['testSuffix'] : '';
 
-        $testRequests = new TestRequestCollection($api, $params);
+        list($processedPath, $expectedPath) = static::getProcessedAndExpectedDirs();
+
+        $testRequests = new TestRequestCollection($api, $params, $processedPath, $expectedPath, $this->apiToCall, $this->apiNotToCall);
         $requestUrls = $testRequests->getRequestUrls();
 
         $compareAgainst = isset($params['compareAgainst']) ? ('test_' . $params['compareAgainst']) : false;
