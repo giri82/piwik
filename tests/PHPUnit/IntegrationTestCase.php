@@ -20,6 +20,7 @@ use Piwik\UrlHelper;
 use Piwik\Tests\Impl\TestRequestCollection;
 use Piwik\Tests\Impl\TestRequest;
 use Piwik\Tests\Impl\TestRequestResponse;
+use Piwik\Tests\Impl\ApiTestConfig;
 use \Exception;
 
 require_once PIWIK_INCLUDE_PATH . '/libs/PiwikTracker/PiwikTracker.php';
@@ -365,7 +366,9 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
         }
 
         $processedFilename = $testName . $filenameSuffix;
-        $expectedFilename = ($compareAgainst ?: $testName) . $filenameSuffix;
+
+        $expectedFilename = $compareAgainst ? ('test_' . $compareAgainst) : $testName;
+        $expectedFilename .= $filenameSuffix;
 
         list($processedDir, $expectedDir) = static::getProcessedAndExpectedDirs();
 
@@ -452,6 +455,8 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
      */
     protected function runApiTests($api, $params)
     {
+        $testConfig = new ApiTestConfig($params);
+
         // make sure that the reports we process here are not directly deleted in ArchiveProcessor/PluginsArchiver
         // (because we process reports in the past, they would sometimes be invalid, and would have been deleted)
         \Piwik\ArchiveProcessor\Rules::disablePurgeOutdatedArchives();
@@ -462,7 +467,7 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
 
         $this->_setCallableApi($api);
 
-        if (isset($params['disableArchiving']) && $params['disableArchiving'] === true) {
+        if ($testConfig->disableArchiving) {
             Rules::$archivingDisabledByTests = true;
             Config::getInstance()->General['browser_archiving_disabled_enforce'] = 1;
         } else {
@@ -470,24 +475,19 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
             Config::getInstance()->General['browser_archiving_disabled_enforce'] = 0;
         }
 
-        if(!empty($params['hackDeleteRangeArchivesBefore'])) {
+        if ($testConfig->hackDeleteRangeArchivesBefore) {
             Db::query('delete from '. Common::prefixTable('archive_numeric_2009_12') . ' where period = 5');
             Db::query('delete from '. Common::prefixTable('archive_blob_2009_12') . ' where period = 5');
         }
 
-        if (isset($params['language'])) {
-            $this->changeLanguage($params['language']);
+        if ($testConfig->language) {
+            $this->changeLanguage($testConfig->language);
         }
 
-        $testSuffix = isset($params['testSuffix']) ? $params['testSuffix'] : '';
-
-        $testRequests = new TestRequestCollection($api, $params, $this->apiToCall, $this->apiNotToCall);
-
-        $compareAgainst = isset($params['compareAgainst']) ? ('test_' . $params['compareAgainst']) : false;
-        $xmlFieldsToRemove = @$params['xmlFieldsToRemove'];
+        $testRequests = new TestRequestCollection($api, $testConfig, $this->apiToCall, $this->apiNotToCall);
 
         foreach ($testRequests->getRequestUrls() as $apiId => $requestUrl) {
-            $this->_testApiUrl($testName . $testSuffix, $apiId, $requestUrl, $compareAgainst, $xmlFieldsToRemove, $params);
+            $this->_testApiUrl($testName . $testConfig->testSuffix, $apiId, $requestUrl, $testConfig->compareAgainst, $testConfig->xmlFieldsToRemove, $params);
         }
 
         // Restore normal purge behavior

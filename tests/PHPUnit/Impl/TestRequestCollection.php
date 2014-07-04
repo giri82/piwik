@@ -28,12 +28,7 @@ class TestRequestCollection
     /**
      * TODO
      */
-    private $processedPath;
-
-    /**
-     * TODO
-     */
-    private $expectedPath;
+    private $testConfig;
 
     /**
      * TODO
@@ -44,35 +39,21 @@ class TestRequestCollection
      * TODO
      */
     private $apiNotToCall;
-
+// TODO: put in type hinting (ie for testConfig
     /**
      * TODO
      */
-    public function __construct($api, $params, $apiToCall, $apiNotToCall)
+    public function __construct($api, $testConfig, $apiToCall, $apiNotToCall)
     {
         $this->apiToCall = $apiToCall;
         $this->apiNotToCall = $apiNotToCall;
+        $this->testConfig = $testConfig;
 
-        $this->requestUrls = $this->_generateApiUrls(
-            isset($params['format']) ? $params['format'] : 'xml',
-            isset($params['idSite']) ? $params['idSite'] : false,
-            isset($params['date']) ? $params['date'] : false,
-            isset($params['periods']) ? $params['periods'] : (isset($params['period']) ? $params['period'] : false),
-            isset($params['setDateLastN']) ? $params['setDateLastN'] : false,
-            isset($params['language']) ? $params['language'] : false,
-            isset($params['segment']) ? $params['segment'] : false,
-            isset($params['visitorId']) ? $params['visitorId'] : false,
-            isset($params['abandonedCarts']) ? $params['abandonedCarts'] : false,
-            isset($params['idGoal']) ? $params['idGoal'] : false,
-            isset($params['apiModule']) ? $params['apiModule'] : false,
-            isset($params['apiAction']) ? $params['apiAction'] : false,
-            isset($params['otherRequestParameters']) ? $params['otherRequestParameters'] : array(),
-            isset($params['supertableApi']) ? $params['supertableApi'] : false,
-            isset($params['fileExtension']) ? $params['fileExtension'] : false);
-
-        if (!empty($params['apiNotToCall'])) {
-            $this->apiNotToCall = array_merge($this->apiNotToCall, $params['apiNotToCall']);
+        if (!empty($testConfig->apiNotToCall)) {
+            $this->apiNotToCall = array_merge($this->apiNotToCall, $testConfig->apiNotToCall);
         }
+
+        $this->requestUrls = $this->_generateApiUrls();
     }
 
     public function getRequestUrls()
@@ -83,42 +64,14 @@ class TestRequestCollection
     /**
      * Will return all api urls for the given data
      *
-     * @param string|array $formats        String or array of formats to fetch from API
-     * @param int|bool $idSite         Id site
-     * @param string|bool $dateTime       Date time string of reports to request
-     * @param array|bool|string $periods        String or array of strings of periods (day, week, month, year)
-     * @param bool $setDateLastN   When set to true, 'date' parameter passed to API request will be rewritten to query a range of dates rather than 1 date only
-     * @param string|bool $language       2 letter language code to request data in
-     * @param string|bool $segment        Custom Segment to query the data  for
-     * @param string|bool $visitorId      Only used for Live! API testing
-     * @param bool $abandonedCarts Only used in Goals API testing
-     * @param bool $idGoal
-     * @param bool $apiModule
-     * @param bool $apiAction
-     * @param array $otherRequestParameters
-     * @param array|bool $supertableApi
-     * @param array|bool $fileExtension
-     *
      * @return array
      */
-    protected function _generateApiUrls($formats = 'xml', $idSite = false, $dateTime = false, $periods = false,
-                                        $setDateLastN = false, $language = false, $segment = false, $visitorId = false,
-                                        $abandonedCarts = false, $idGoal = false, $apiModule = false, $apiAction = false,
-                                        $otherRequestParameters = array(), $supertableApi = false, $fileExtension = false)
+    protected function _generateApiUrls()
     {
-        if ($periods === false) {
-            $periods = 'day';
-        }
-        if (!is_array($periods)) {
-            $periods = array($periods);
-        }
-        if (!is_array($formats)) {
-            $formats = array($formats);
-        }
         $parametersToSet = array(
-            'idSite'         => $idSite,
-            'date'           => ($periods == array('range') || strpos($dateTime, ',') !== false) ?
-                                    $dateTime : date('Y-m-d', strtotime($dateTime)),
+            'idSite'         => $this->testConfig->idSite,
+            'date'           => ($this->testConfig->periods == array('range') || strpos($this->testConfig->date, ',') !== false) ?
+                                    $this->testConfig->date : date('Y-m-d', strtotime($this->testConfig->date)),
             'expanded'       => '1',
             'piwikUrl'       => 'http://example.org/piwik/',
             // Used in getKeywordsForPageUrl
@@ -135,28 +88,28 @@ class TestRequestCollection
             // do not show the millisec timer in response or tests would always fail as value is changing
             'showTimer'      => 0,
 
-            'language'       => $language ? $language : 'en',
-            'abandonedCarts' => $abandonedCarts ? 1 : 0,
-            'idSites'        => $idSite,
+            'language'       => $this->testConfig->language ?: 'en',
+            'abandonedCarts' => $this->testConfig->abandonedCarts ? 1 : 0,
+            'idSites'        => $this->testConfig->idSite,
         );
-        $parametersToSet = array_merge($parametersToSet, $otherRequestParameters);
-        if (!empty($visitorId)) {
-            $parametersToSet['visitorId'] = $visitorId;
+        $parametersToSet = array_merge($parametersToSet, $this->testConfig->otherRequestParameters);
+        if (!empty($this->testConfig->visitorId)) {
+            $parametersToSet['visitorId'] = $this->testConfig->visitorId;
         }
-        if (!empty($apiModule)) {
-            $parametersToSet['apiModule'] = $apiModule;
+        if (!empty($this->testConfig->apiModule)) {
+            $parametersToSet['apiModule'] = $this->testConfig->apiModule;
         }
-        if (!empty($apiAction)) {
-            $parametersToSet['apiAction'] = $apiAction;
+        if (!empty($this->testConfig->apiAction)) {
+            $parametersToSet['apiAction'] = $this->testConfig->apiAction;
         }
-        if (!empty($segment)) {
-            $parametersToSet['segment'] = urlencode($segment);
+        if (!empty($this->testConfig->segment)) {
+            $parametersToSet['segment'] = urlencode($this->testConfig->segment);
         }
-        if ($idGoal !== false) {
-            $parametersToSet['idGoal'] = $idGoal;
+        if ($this->testConfig->idGoal !== false) {
+            $parametersToSet['idGoal'] = $this->testConfig->idGoal;
         }
 
-        $requestUrls = $this->generateUrlsApi($parametersToSet, $formats, $periods, $supertableApi, $setDateLastN, $language, $fileExtension);
+        $requestUrls = $this->generateUrlsApi($parametersToSet);
 
         $this->checkEnoughUrlsAreTested($requestUrls);
 
@@ -194,8 +147,10 @@ class TestRequestCollection
      *
      * @return array of API URLs query strings
      */
-    protected function generateUrlsApi($parametersToSet, $formats, $periods, $supertableApi = false, $setDateLastN = false, $language = false, $fileExtension = false)
+    protected function generateUrlsApi($parametersToSet)
     {
+        $formats = array($this->testConfig->format);
+
         // Get the URLs to query against the API for all functions starting with get*
         $skipped = $requestUrls = array();
         $apiMetadata = new DocumentationGenerator;
@@ -225,17 +180,17 @@ class TestRequestCollection
                     continue;
                 }
 
-                foreach ($periods as $period) {
+                foreach ($this->testConfig->periods as $period) {
                     $parametersToSet['period'] = $period;
 
                     // If date must be a date range, we process this date range by adding 6 periods to it
-                    if ($setDateLastN) {
+                    if ($this->testConfig->setDateLastN) {
                         if (!isset($parametersToSet['dateRewriteBackup'])) {
                             $parametersToSet['dateRewriteBackup'] = $parametersToSet['date'];
                         }
 
-                        $lastCount = (int)$setDateLastN;
-                        if ($setDateLastN === true) {
+                        $lastCount = (int)$this->testConfig->setDateLastN;
+                        if ($this->testConfig->setDateLastN === true) {
                             $lastCount = 6;
                         }
                         $firstDate = $parametersToSet['dateRewriteBackup'];
@@ -244,15 +199,15 @@ class TestRequestCollection
                     }
 
                     // Set response language
-                    if ($language !== false) {
-                        $parametersToSet['language'] = $language;
+                    if ($this->testConfig->language !== false) {
+                        $parametersToSet['language'] = $this->testConfig->language;
                     }
 
                     // set idSubtable if subtable API is set
-                    if ($supertableApi !== false) {
+                    if ($this->testConfig->supertableApi !== false) {
                         $request = new Request(array(
                                                               'module'    => 'API',
-                                                              'method'    => $supertableApi,
+                                                              'method'    => $this->testConfig->supertableApi,
                                                               'idSite'    => $parametersToSet['idSite'],
                                                               'period'    => $parametersToSet['period'],
                                                               'date'      => $parametersToSet['date'],
@@ -274,7 +229,7 @@ class TestRequestCollection
                         // if no subtable found, throw
                         if (!isset($parametersToSet['idSubtable'])) {
                             throw new Exception(
-                                "Cannot find subtable to load for $apiId in $supertableApi.");
+                                "Cannot find subtable to load for $apiId in {$this->testConfig->supertableApi}.");
                         }
                     }
 
@@ -300,8 +255,8 @@ class TestRequestCollection
 
                         $apiRequestId .= '.' . $format;
 
-                        if ($fileExtension) {
-                            $apiRequestId .= '.' . $fileExtension;
+                        if ($this->testConfig->fileExtension) {
+                            $apiRequestId .= '.' . $this->testConfig->fileExtension;
                         }
 
                         $requestUrls[$apiRequestId] = UrlHelper::getArrayFromQueryString($exampleUrl);

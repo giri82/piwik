@@ -8,6 +8,8 @@
 
 /**
  * Testing Custom Events
+ *
+ * @group CustomEventsTest
  */
 class Test_Piwik_Integration_CustomEvents extends IntegrationTestCase
 {
