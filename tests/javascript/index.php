@@ -855,7 +855,8 @@ function PiwikTest() {
         startTime = new Date();
         tracker.hook.test._beforeUnloadHandler();
         stopTime = new Date();
-        ok( (stopTime.getTime() - startTime.getTime()) < 500, 'beforeUnloadHandler()' );
+        var msSinceStarted = (stopTime.getTime() - startTime.getTime());
+        ok( msSinceStarted < 510, 'beforeUnloadHandler(): ' + msSinceStarted + ' was greater than 510 ' );
 
         tracker.setLinkTrackingTimer(2000);
         startTime = new Date();

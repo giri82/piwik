@@ -5,6 +5,8 @@
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  */
+namespace Piwik\Tests;
+
 use Piwik\API\DocumentationGenerator;
 use Piwik\API\Proxy;
 use Piwik\API\Request;
@@ -22,6 +24,8 @@ use Piwik\Tests\Impl\TestRequest;
 use Piwik\Tests\Impl\TestRequestResponse;
 use Piwik\Tests\Impl\ApiTestConfig;
 use \Exception;
+use Piwik\Log;
+use PHPUnit_Framework_TestCase;
 
 require_once PIWIK_INCLUDE_PATH . '/libs/PiwikTracker/PiwikTracker.php';
 
@@ -77,6 +81,8 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
 
     public static function setUpBeforeClass()
     {
+        Log::debug("Setting up " . get_called_class());
+
         if (!isset(static::$fixture)) {
             $fixture = new Fixture();
         } else {
@@ -94,6 +100,8 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
 
     public static function tearDownAfterClass()
     {
+        Log::debug("Tearing down " . get_called_class());
+
         if (!isset(static::$fixture)) {
             $fixture = new Fixture();
         } else {
@@ -200,7 +208,7 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
             )
         );
 
-        if(Fixture::canImagesBeIncludedInScheduledReports()) {
+        if (Fixture::canImagesBeIncludedInScheduledReports()) {
             // PDF Scheduled Report
             // tests/PHPUnit/Integration/processed/test_ecommerceOrderWithItems_scheduled_report_in_pdf_tables_only__ScheduledReports.generateReport_week.original.pdf
             array_push(
@@ -558,7 +566,7 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
     {
         $result = array();
         foreach (DbHelper::getTablesInstalled() as $tableName) {
-            $result[$tableName] = Db::fetchAll("SELECT * FROM $tableName");
+            $result[$tableName] = Db::fetchAll("SELECT * FROM `$tableName`");
         }
         return $result;
     }
@@ -610,7 +618,7 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
                 $rowsSql[] = "(" . implode(',', $values) . ")";
             }
 
-            $sql = "INSERT INTO $table VALUES " . implode(',', $rowsSql);
+            $sql = "INSERT INTO `$table` VALUES " . implode(',', $rowsSql);
             Db::query($sql, $bind);
         }
     }
@@ -621,7 +629,9 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
     public static function deleteArchiveTables()
     {
         foreach (ArchiveTableCreator::getTablesArchivesInstalled() as $table) {
-            Db::query("DROP TABLE IF EXISTS $table");
+            Log::debug("Dropping table $table");
+
+            Db::query("DROP TABLE IF EXISTS `$table`");
         }
 
         ArchiveTableCreator::refreshTableList($forceReload = true);

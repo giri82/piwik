@@ -191,7 +191,7 @@ class SettingsPiwik
      */
     public static function isPiwikInstalled()
     {
-        $config = Config::getInstance()->getLocalConfigPath();
+        $config = Config::getInstance()->getLocalPath();
         $exists = file_exists($config);
 
         // Piwik is installed if the config file is found
@@ -299,7 +299,7 @@ class SettingsPiwik
      * @param $piwikServerUrl
      * @return bool
      */
-    static public function checkPiwikServerWorking($piwikServerUrl, $acceptInvalidSSLCertificates = false)
+    public static function checkPiwikServerWorking($piwikServerUrl, $acceptInvalidSSLCertificates = false)
     {
         // Now testing if the webserver is running
         try {

@@ -12,6 +12,7 @@ use Exception;
 use Piwik\ArchiveProcessor\Rules;
 use Piwik\CronArchive\FixedSiteIds;
 use Piwik\CronArchive\SharedSiteIds;
+use Piwik\Period\Factory;
 use Piwik\Plugins\CoreAdminHome\API as APICoreAdminHome;
 use Piwik\Plugins\SitesManager\API as APISitesManager;
 
@@ -95,7 +96,7 @@ class CronArchive
      * @param string $period
      * @return string
      */
-    static public function lastRunKey($idSite, $period)
+    public static function lastRunKey($idSite, $period)
     {
         return "lastRunArchive" . $period . "_" . $idSite;
     }
@@ -1168,7 +1169,7 @@ class CronArchive
     private function logFatalErrorUrlExpected()
     {
         $this->logFatalError("./console core:archive expects the argument 'url' to be set to your Piwik URL, for example: --url=http://example.org/piwik/ "
-            . "\n--help for more information", $backtrace = false);
+            . "\n--help for more information");
     }
 
     private function getVisitsLastPeriodFromApiResponse($stats)
@@ -1256,6 +1257,7 @@ class CronArchive
         $restrictToPeriods = explode(',', $restrictToPeriods);
         $restrictToPeriods = array_map('trim', $restrictToPeriods);
         $restrictToPeriods = array_intersect($restrictToPeriods, $this->getDefaultPeriodsToProcess());
+        $restrictToPeriods = array_intersect($restrictToPeriods, Factory::getPeriodsEnabledForAPI());
         return $restrictToPeriods;
     }
 
@@ -1320,6 +1322,10 @@ class CronArchive
      */
     private function getConcurrentRequestsPerWebsite()
     {
-        return $this->getParameterFromCli('--concurrent-requests-per-website', true);
+        $cliParam = $this->getParameterFromCli('--concurrent-requests-per-website', true);
+        if ($cliParam !== false) {
+            return $cliParam;
+        }
+        return self::MAX_CONCURRENT_API_REQUESTS;
     }
 }

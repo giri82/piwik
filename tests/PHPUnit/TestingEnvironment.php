@@ -85,7 +85,9 @@ class Piwik_TestingEnvironment
     public function logVariables()
     {
         try {
-            if (isset($_SERVER['QUERY_STRING'])) {
+            if (isset($_SERVER['QUERY_STRING'])
+                && !$this->dontUseTestConfig
+            ) {
                 \Piwik\Log::verbose("Test Environment Variables for (%s):\n%s", $_SERVER['QUERY_STRING'], print_r($this->behaviorOverrideProperties, true));
             }
         } catch (Exception $ex) {
@@ -95,7 +97,20 @@ class Piwik_TestingEnvironment
 
     public function getCoreAndSupportedPlugins()
     {
-        return array_filter(PluginManager::getInstance()->readPluginsDirectory(), function ($pluginName) {
+        $disabledPlugins = PluginManager::getInstance()->getCorePluginsDisabledByDefault();
+        $disabledPlugins[] = 'LoginHttpAuth';
+        $disabledPlugins[] = 'ExampleVisualization';
+        $disabledPlugins[] = 'PleineLune';
+
+        $disabledPlugins = array_diff($disabledPlugins, array(
+            'DBStats', 'ExampleUI', 'ExampleCommand', 'ExampleSettingsPlugin'
+        ));
+
+        return array_filter(PluginManager::getInstance()->readPluginsDirectory(), function ($pluginName) use ($disabledPlugins) {
+            if (in_array($pluginName, $disabledPlugins)) {
+                return false;
+            }
+
             return PluginManager::getInstance()->isPluginBundledWithCore($pluginName)
                 || PluginManager::getInstance()->isPluginOfficialAndNotBundledWithCore($pluginName);
         });
@@ -175,6 +190,10 @@ class Piwik_TestingEnvironment
             });
         }
         Piwik::addAction('Request.dispatch', function() use ($testingEnvironment) {
+            if (empty($_GET['ignoreClearAllViewDataTableParameters'])) { // TODO: should use testingEnvironment variable, not query param
+                \Piwik\ViewDataTable\Manager::clearAllViewDataTableParameters();
+            }
+
             if ($testingEnvironment->optionsOverride) {
                 foreach ($testingEnvironment->optionsOverride as $name => $value) {
                     Option::set($name, $value);
