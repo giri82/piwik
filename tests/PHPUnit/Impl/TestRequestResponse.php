@@ -9,6 +9,7 @@
 namespace Piwik\Tests\Impl;
 
 use Piwik\API\Request;
+use Piwik\Tests\IntegrationTestCase;
 use \PHPUnit_Framework_Assert as Asserts;
 
 /**
@@ -199,6 +200,7 @@ class TestRequestResponse
     {
         return empty($this->params['keepLiveDates'])
             && ($this->requestUrl['method'] == 'Live.getLastVisits'
+                || $this->requestUrl['method'] == 'Live.getLastVisitsDetails'
                 || $this->requestUrl['method'] == 'Live.getVisitorProfile');
     }
 
