@@ -157,7 +157,7 @@ class TestRequestCollection
 
         // Get the URLs to query against the API for all functions starting with get*
         foreach ($this->getAllApiMethods() as $apiMethodInfo) {
-            list($moduleClass, $moduleName, $methodName) = $apiMethodInfo;
+            list($class, $moduleName, $methodName) = $apiMethodInfo;
 
             $apiId = $moduleName . '.' . $methodName;
 
@@ -257,6 +257,8 @@ class TestRequestCollection
                 $result[] = array($class, $moduleName, $methodName);
             }
         }
+
+        return $result;
     }
 
     private function shouldSkipApiMethod($moduleName, $methodName) {
