@@ -150,120 +150,137 @@ class TestRequestCollection
     protected function generateUrlsApi($parametersToSet)
     {
         $formats = array($this->testConfig->format);
+        $originalDate = $parametersToSet['date'];
+
+        $requestUrls = array();
+        $apiMetadata = new DocumentationGenerator;
 
         // Get the URLs to query against the API for all functions starting with get*
-        $skipped = $requestUrls = array();
-        $apiMetadata = new DocumentationGenerator;
-        foreach (Proxy::getInstance()->getMetadata() as $class => $info) {
-            $moduleName = Proxy::getInstance()->getModuleNameFromClassName($class);
-            foreach ($info as $methodName => $infoMethod) {
-                $apiId = $moduleName . '.' . $methodName;
+        foreach ($this->getAllApiMethods() as $apiMethodInfo) {
+            list($moduleClass, $moduleName, $methodName) = $apiMethodInfo;
 
-                // If Api to test were set, we only test these
-                if (!empty($this->apiToCall)
-                    && in_array($moduleName, $this->apiToCall) === false
-                    && in_array($apiId, $this->apiToCall) === false
-                ) {
-                    $skipped[] = $apiId;
-                    continue;
-                } elseif (
-                    ((strpos($methodName, 'get') !== 0 && $methodName != 'generateReport')
-                        || in_array($moduleName, $this->apiNotToCall) === true
-                        || in_array($apiId, $this->apiNotToCall) === true
-                        || $methodName == 'getLogoUrl'
-                        || $methodName == 'getSVGLogoUrl'
-                        || $methodName == 'hasSVGLogo'
-                        || $methodName == 'getHeaderLogoUrl'
-                    )
-                ) { // Excluded modules from test
-                    $skipped[] = $apiId;
-                    continue;
+            $apiId = $moduleName . '.' . $methodName;
+
+            foreach ($this->testConfig->periods as $period) {
+                $parametersToSet['period'] = $period;
+
+                // If date must be a date range, we process this date range by adding 6 periods to it
+                if ($this->testConfig->setDateLastN) {
+                    if (!isset($parametersToSet['dateRewriteBackup'])) {
+                        $parametersToSet['dateRewriteBackup'] = $parametersToSet['date'];
+                    }
+
+                    $lastCount = $this->testConfig->setDateLastN;
+
+                    $secondDate = date('Y-m-d', strtotime("+$lastCount " . $period . "s", strtotime($originalDate)));
+                    $parametersToSet['date'] = $originalDate . ',' . $secondDate;
                 }
 
-                foreach ($this->testConfig->periods as $period) {
-                    $parametersToSet['period'] = $period;
+                // Set response language
+                if ($this->testConfig->language !== false) {
+                    $parametersToSet['language'] = $this->testConfig->language;
+                }
 
-                    // If date must be a date range, we process this date range by adding 6 periods to it
-                    if ($this->testConfig->setDateLastN) {
-                        if (!isset($parametersToSet['dateRewriteBackup'])) {
-                            $parametersToSet['dateRewriteBackup'] = $parametersToSet['date'];
-                        }
+                // set idSubtable if subtable API is set
+                if ($this->testConfig->supertableApi !== false) {
+                    $request = new Request(array(
+                                                          'module'    => 'API',
+                                                          'method'    => $this->testConfig->supertableApi,
+                                                          'idSite'    => $parametersToSet['idSite'],
+                                                          'period'    => $parametersToSet['period'],
+                                                          'date'      => $parametersToSet['date'],
+                                                          'format'    => 'php',
+                                                          'serialize' => 0,
+                                                     ));
 
-                        $lastCount = (int)$this->testConfig->setDateLastN;
-                        if ($this->testConfig->setDateLastN === true) {
-                            $lastCount = 6;
-                        }
-                        $firstDate = $parametersToSet['dateRewriteBackup'];
-                        $secondDate = date('Y-m-d', strtotime("+$lastCount " . $period . "s", strtotime($firstDate)));
-                        $parametersToSet['date'] = $firstDate . ',' . $secondDate;
-                    }
+                    $content = $request->process();
+                    IntegrationTestCase::assertApiResponseHasNoError($content);
 
-                    // Set response language
-                    if ($this->testConfig->language !== false) {
-                        $parametersToSet['language'] = $this->testConfig->language;
-                    }
-
-                    // set idSubtable if subtable API is set
-                    if ($this->testConfig->supertableApi !== false) {
-                        $request = new Request(array(
-                                                              'module'    => 'API',
-                                                              'method'    => $this->testConfig->supertableApi,
-                                                              'idSite'    => $parametersToSet['idSite'],
-                                                              'period'    => $parametersToSet['period'],
-                                                              'date'      => $parametersToSet['date'],
-                                                              'format'    => 'php',
-                                                              'serialize' => 0,
-                                                         ));
-
-                        // find first row w/ subtable
-                        $content = $request->process();
-
-                        IntegrationTestCase::assertApiResponseHasNoError($content);
-                        foreach ($content as $row) {
-                            if (isset($row['idsubdatatable'])) {
-                                $parametersToSet['idSubtable'] = $row['idsubdatatable'];
-                                break;
-                            }
-                        }
-
-                        // if no subtable found, throw
-                        if (!isset($parametersToSet['idSubtable'])) {
-                            throw new Exception(
-                                "Cannot find subtable to load for $apiId in {$this->testConfig->supertableApi}.");
+                    // find first row w/ subtable
+                    foreach ($content as $row) {
+                        if (isset($row['idsubdatatable'])) {
+                            $parametersToSet['idSubtable'] = $row['idsubdatatable'];
+                            break;
                         }
                     }
 
-                    // Generate for each specified format
-                    foreach ($formats as $format) {
-                        $parametersToSet['format'] = $format;
-                        $parametersToSet['hideIdSubDatable'] = 1;
-                        $parametersToSet['serialize'] = 1;
-
-                        $exampleUrl = $apiMetadata->getExampleUrl($class, $methodName, $parametersToSet);
-                        
-                        if ($exampleUrl === false) {
-                            $skipped[] = $apiId;
-                            continue;
-                        }
-
-                        // Remove the first ? in the query string
-                        $exampleUrl = substr($exampleUrl, 1);
-                        $apiRequestId = $apiId;
-                        if (strpos($exampleUrl, 'period=') !== false) {
-                            $apiRequestId .= '_' . $period;
-                        }
-
-                        $apiRequestId .= '.' . $format;
-
-                        if ($this->testConfig->fileExtension) {
-                            $apiRequestId .= '.' . $this->testConfig->fileExtension;
-                        }
-
-                        $requestUrls[$apiRequestId] = UrlHelper::getArrayFromQueryString($exampleUrl);
+                    // if no subtable found, throw
+                    if (!isset($parametersToSet['idSubtable'])) {
+                        throw new Exception(
+                            "Cannot find subtable to load for $apiId in {$this->testConfig->supertableApi}.");
                     }
+                }
+
+                // Generate for each specified format
+                foreach ($formats as $format) {
+                    $parametersToSet['format'] = $format;
+                    $parametersToSet['hideIdSubDatable'] = 1;
+                    $parametersToSet['serialize'] = 1;
+
+                    $exampleUrl = $apiMetadata->getExampleUrl($class, $methodName, $parametersToSet);
+                    
+                    if ($exampleUrl === false) {
+                        continue;
+                    }
+
+                    // Remove the first ? in the query string
+                    $exampleUrl = substr($exampleUrl, 1);
+                    $apiRequestId = $apiId;
+                    if (strpos($exampleUrl, 'period=') !== false) {
+                        $apiRequestId .= '_' . $period;
+                    }
+
+                    $apiRequestId .= '.' . $format;
+
+                    if ($this->testConfig->fileExtension) {
+                        $apiRequestId .= '.' . $this->testConfig->fileExtension;
+                    }
+
+                    $requestUrls[$apiRequestId] = UrlHelper::getArrayFromQueryString($exampleUrl);
                 }
             }
         }
         return $requestUrls;
+    }
+
+    private function getAllApiMethods()
+    {
+        $result = array();
+
+        foreach (Proxy::getInstance()->getMetadata() as $class => $info) {
+            $moduleName = Proxy::getInstance()->getModuleNameFromClassName($class);
+            foreach ($info as $methodName => $infoMethod) {
+                if ($this->shouldSkipApiMethod($moduleName, $methodName)) {
+                    continue;
+                }
+
+                $result[] = array($class, $moduleName, $methodName);
+            }
+        }
+    }
+
+    private function shouldSkipApiMethod($moduleName, $methodName) {
+        $apiId = $moduleName . '.' . $methodName;
+
+        // If Api to test were set, we only test these
+        if (!empty($this->apiToCall)
+            && in_array($moduleName, $this->apiToCall) === false
+            && in_array($apiId, $this->apiToCall) === false
+        ) {
+            return true;
+        } elseif (
+            ((strpos($methodName, 'get') !== 0 && $methodName != 'generateReport')
+                || in_array($moduleName, $this->apiNotToCall) === true
+                || in_array($apiId, $this->apiNotToCall) === true
+                || $methodName == 'getLogoUrl'
+                || $methodName == 'getSVGLogoUrl'
+                || $methodName == 'hasSVGLogo'
+                || $methodName == 'getHeaderLogoUrl'
+            )
+        ) { // Excluded modules from test
+            return true;
+        }
+
+        return false;
     }
 }

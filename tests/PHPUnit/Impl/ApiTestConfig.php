@@ -141,5 +141,9 @@ class ApiTestConfig
         if (!is_array($this->periods)) {
             $this->periods = array($this->periods);
         }
+
+        if ($this->setDateLastN === true) {
+            $this->setDateLastN = 6;
+        }
     }
 }
