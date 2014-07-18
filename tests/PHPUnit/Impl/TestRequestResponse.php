@@ -101,7 +101,7 @@ class TestRequestResponse
         }
 
         $apiResponse = $this->normalizePdfContent($apiResponse);
-        $apiResponse = $this->removeXmlFieldsToRemove($apiResponse);
+        $apiResponse = $this->removeXmlFields($apiResponse);
         $apiResponse = $this->normalizeDecimalFields($apiResponse);
 
         return $apiResponse;
@@ -159,7 +159,7 @@ class TestRequestResponse
         return $response;
     }
 
-    private function removeXmlFieldsToRemove($input)
+    private function removeXmlFields($input)
     {
         $this->params['xmlFieldsToRemove'][] = 'idsubdatatable'; // TODO: has testNotSmallAfter?
 
