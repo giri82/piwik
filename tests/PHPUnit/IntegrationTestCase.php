@@ -37,38 +37,6 @@ require_once PIWIK_INCLUDE_PATH . '/libs/PiwikTracker/PiwikTracker.php';
  */
 abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
 {
-    public $defaultApiNotToCall = array(
-        'LanguagesManager',
-        'DBStats',
-        'Dashboard',
-        'UsersManager',
-        'SitesManager',
-        'ExampleUI',
-        'Overlay',
-        'Live',
-        'SEO',
-        'ExampleAPI',
-        'ScheduledReports',
-        'MobileMessaging',
-        'Transitions',
-        'API',
-        'ImageGraph',
-        'Annotations',
-        'SegmentEditor',
-        'UserCountry.getLocationFromIP',
-        'Dashboard',
-        'ExamplePluginTemplate',
-        'CustomAlerts',
-        'Insights'
-    );
-
-    /**
-     * List of Modules, or Module.Method that should not be called as part of the XML output compare
-     * Usually these modules either return random changing data, or are already tested in specific unit tests.
-     */
-    public $apiNotToCall = array();
-    public $apiToCall = array();
-
     /**
      * Identifies the last language used in an API/Controller call.
      *
@@ -116,9 +84,10 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
         parent::setUp();
 
         // Make sure the browser running the test does not influence the Country detection code
-        $_SERVER['HTTP_ACCEPT_LANGUAGE'] = 'en';
+        // TODO: remove if tests pass
+        //$_SERVER['HTTP_ACCEPT_LANGUAGE'] = 'en';
 
-        $this->changeLanguage('en');
+        //$this->changeLanguage('en');
     }
 
     /**
@@ -352,8 +321,8 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
         if(!is_string($response)) {
             $response = json_encode($response);
         }
-        $this->assertTrue(stripos($response, 'error') === false, "error in $response");
-        $this->assertTrue(stripos($response, 'exception') === false, "exception in $response");
+        self::assertTrue(stripos($response, 'error') === false, "error in $response");
+        self::assertTrue(stripos($response, 'exception') === false, "exception in $response");
     }
 
     protected static function getProcessedAndExpectedDirs()
@@ -422,27 +391,6 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
         return $result;
     }
 
-    protected function _setCallableApi($api)
-    {
-        if ($api == 'all') {
-            $this->apiToCall = array();
-            $this->apiNotToCall = $this->defaultApiNotToCall;
-        } else {
-            if (!is_array($api)) {
-                $api = array($api);
-            }
-
-            $this->apiToCall = $api;
-
-            if (!in_array('UserCountry.getLocationFromIP', $api)) {
-                $this->apiNotToCall = array('API.getPiwikVersion',
-                                            'UserCountry.getLocationFromIP');
-            } else {
-                $this->apiNotToCall = array();
-            }
-        }
-    }
-
     /**
      * Runs API tests.
      */
@@ -457,8 +405,6 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
         $testName = 'test_' . static::getOutputPrefix();
         $this->missingExpectedFiles = array();
         $this->comparisonFailures = array();
-
-        $this->_setCallableApi($api);
 
         if ($testConfig->disableArchiving) {
             Rules::$archivingDisabledByTests = true;
@@ -477,7 +423,7 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
             $this->changeLanguage($testConfig->language);
         }
 
-        $testRequests = new TestRequestCollection($api, $testConfig, $this->apiToCall, $this->apiNotToCall);
+        $testRequests = new TestRequestCollection($api, $testConfig, $api);
 
         foreach ($testRequests->getRequestUrls() as $apiId => $requestUrl) {
             $this->_testApiUrl($testName . $testConfig->testSuffix, $apiId, $requestUrl, $testConfig->compareAgainst, $testConfig->xmlFieldsToRemove, $params);

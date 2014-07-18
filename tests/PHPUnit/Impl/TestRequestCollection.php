@@ -12,6 +12,7 @@ use Piwik\API\DocumentationGenerator;
 use Piwik\API\Proxy;
 use Piwik\API\Request;
 use Piwik\UrlHelper;
+use Piwik\Tests\IntegrationTestCase;
 use \Exception;
 use \PHPUnit_Framework_Assert;
 
@@ -20,6 +21,31 @@ use \PHPUnit_Framework_Assert;
  */
 class TestRequestCollection
 {
+    public $defaultApiNotToCall = array(
+        'LanguagesManager',
+        'DBStats',
+        'Dashboard',
+        'UsersManager',
+        'SitesManager',
+        'ExampleUI',
+        'Overlay',
+        'Live',
+        'SEO',
+        'ExampleAPI',
+        'ScheduledReports',
+        'MobileMessaging',
+        'Transitions',
+        'API',
+        'ImageGraph',
+        'Annotations',
+        'SegmentEditor',
+        'UserCountry.getLocationFromIP',
+        'Dashboard',
+        'ExamplePluginTemplate',
+        'CustomAlerts',
+        'Insights'
+    );
+
     /**
      * TODO
      */
@@ -39,14 +65,14 @@ class TestRequestCollection
      * TODO
      */
     private $apiNotToCall;
-// TODO: put in type hinting (ie for testConfig
+// TODO: put in type hinting (ie for testConfig)
     /**
      * TODO
      */
-    public function __construct($api, $testConfig, $apiToCall, $apiNotToCall)
+    public function __construct($api, $testConfig, $apiToCall)
     {
-        $this->apiToCall = $apiToCall;
-        $this->apiNotToCall = $apiNotToCall;
+        $this->setExplicitApiToCallAndNotCall($apiToCall);
+
         $this->testConfig = $testConfig;
 
         if (!empty($testConfig->apiNotToCall)) {
@@ -109,7 +135,7 @@ class TestRequestCollection
             $parametersToSet['idGoal'] = $this->testConfig->idGoal;
         }
 
-        $requestUrls = $this->generateUrlsApi($parametersToSet);
+        $requestUrls = $this->generateApiUrlPermutations($parametersToSet);
 
         $this->checkEnoughUrlsAreTested($requestUrls);
 
@@ -147,7 +173,7 @@ class TestRequestCollection
      *
      * @return array of API URLs query strings
      */
-    protected function generateUrlsApi($parametersToSet)
+    protected function generateApiUrlPermutations($parametersToSet)
     {
         $formats = array($this->testConfig->format);
         $originalDate = $parametersToSet['date'];
@@ -284,5 +310,26 @@ class TestRequestCollection
         }
 
         return false;
+    }
+
+    private function setExplicitApiToCallAndNotCall($apiToCall)
+    {
+        if ($apiToCall == 'all') {
+            $this->apiToCall = array();
+            $this->apiNotToCall = $this->defaultApiNotToCall;
+        } else {
+            if (!is_array($apiToCall)) {
+                $apiToCall = array($apiToCall);
+            }
+
+            $this->apiToCall = $apiToCall;
+
+            if (!in_array('UserCountry.getLocationFromIP', $apiToCall)) {
+                $this->apiNotToCall = array('API.getPiwikVersion',
+                                            'UserCountry.getLocationFromIP');
+            } else {
+                $this->apiNotToCall = array();
+            }
+        }
     }
 }
