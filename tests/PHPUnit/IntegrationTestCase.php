@@ -326,13 +326,7 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
         try {
             $expectedResponse = TestRequestResponse::loadFromFile($expectedFilePath, $params, $requestUrl);
         } catch (Exception $ex) {
-            $this->missingExpectedFiles[] = $expectedFilePath;
-
-            print("The expected file is not found at '$expectedFilePath'. The Processed response was:");
-            print("\n----------------------------\n\n");
-            var_dump($processedResponse->getResponseText());
-            print("\n----------------------------\n");
-
+            $this->handleMissingExpectedFile($expectedFilePath, $processedResponse);
             return;
         }
 
@@ -341,6 +335,16 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
         } catch (Exception $ex) {
             $this->comparisonFailures[] = $ex;
         }
+    }
+
+    private function handleMissingExpectedFile($expectedFilePath, TestRequestResponse $processedResponse)
+    {
+        $this->missingExpectedFiles[] = $expectedFilePath;
+
+        print("The expected file is not found at '$expectedFilePath'. The Processed response was:");
+        print("\n----------------------------\n\n");
+        var_dump($processedResponse->getResponseText());
+        print("\n----------------------------\n");
     }
 
     public static function assertApiResponseHasNoError($response)
@@ -398,26 +402,7 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
      * )
      * </code>
      *
-     * Valid test options:
-     * <ul>
-     *   <li><b>testSuffix</b> The suffix added to the test name. Helps determine
-     *   the filename of the expected output.</li>
-     *   <li><b>format</b> The desired format of the output. Defaults to 'xml'.</li>
-     *   <li><b>idSite</b> The id of the website to get data for.</li>
-     *   <li><b>date</b> The date to get data for.</li>
-     *   <li><b>periods</b> The period or periods to get data for. Can be an array.</li>
-     *   <li><b>setDateLastN</b> Flag describing whether to query for a set of
-     *   dates or not.</li>
-     *   <li><b>language</b> The language to use.</li>
-     *   <li><b>segment</b> The segment to use.</li>
-     *   <li><b>visitorId</b> The visitor ID to use.</li>
-     *   <li><b>abandonedCarts</b> Whether to look for abandoned carts or not.</li>
-     *   <li><b>idGoal</b> The goal ID to use.</li>
-     *   <li><b>apiModule</b> The value to use in the apiModule request parameter.</li>
-     *   <li><b>apiAction</b> The value to use in the apiAction request parameter.</li>
-     *   <li><b>otherRequestParameters</b> An array of extra request parameters to use.</li>
-     *   <li><b>disableArchiving</b> Disable archiving before running tests.</li>
-     * </ul>
+     * Valid test options are described in the ApiTestConfig class docs.
      *
      * All test options are optional, except 'idSite' & 'date'.
      */
@@ -516,20 +501,24 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
 
         // Display as one error all sub-failures
         if (!empty($this->comparisonFailures)) {
-            $messages = '';
-            $i = 1;
-            foreach ($this->comparisonFailures as $failure) {
-                $msg = $failure->getMessage();
-                $msg = strtok($msg, "\n");
-                $messages .= "\n#" . $i++ . ": " . $msg;
-            }
-            $messages .= " \n ";
-            print($messages);
-            $first = reset($this->comparisonFailures);
-            throw $first;
+            $this->printComparisonFailures();
+            throw reset($this->comparisonFailures);
         }
 
         return count($this->comparisonFailures) == 0;
+    }
+
+    private function printComparisonFailures()
+    {
+        $messages = '';
+        foreach ($this->comparisonFailures as $index => $failure) {
+            $msg = $failure->getMessage();
+            $msg = strtok($msg, "\n");
+            $messages .= "\n#" . ($index + 1) . ": " . $msg;
+        }
+        $messages .= " \n ";
+
+        print($messages);
     }
 
     /**
