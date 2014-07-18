@@ -343,7 +343,7 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
         }
     }
 
-    protected function checkRequestResponse($response)
+    public static function assertApiResponseHasNoError($response)
     {
         if(!is_string($response)) {
             $response = json_encode($response);

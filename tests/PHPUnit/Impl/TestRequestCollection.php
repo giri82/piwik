@@ -218,7 +218,7 @@ class TestRequestCollection
                         // find first row w/ subtable
                         $content = $request->process();
 
-                        $this->checkRequestResponse($content);
+                        IntegrationTestCase::assertApiResponseHasNoError($content);
                         foreach ($content as $row) {
                             if (isset($row['idsubdatatable'])) {
                                 $parametersToSet['idSubtable'] = $row['idsubdatatable'];
@@ -265,16 +265,5 @@ class TestRequestCollection
             }
         }
         return $requestUrls;
-    }
-
-    // TODO: duplicated code (also in IntegrationTestCase)
-    protected function checkRequestResponse($response)
-    {
-        if(!is_string($response)) {
-            $response = json_encode($response);
-        }
-
-        PHPUnit_Framework_Assert::assertTrue(stripos($response, 'error') === false, "error in $response");
-        PHPUnit_Framework_Assert::assertTrue(stripos($response, 'exception') === false, "exception in $response");
     }
 }
