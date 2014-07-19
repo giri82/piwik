@@ -159,11 +159,15 @@ class TestRequestResponse
         return $response;
     }
 
-    private function removeXmlFields($input)
+    private function removeXmlFields($input, $fieldsToRemove = false)
     {
-        $this->params['xmlFieldsToRemove'][] = 'idsubdatatable'; // TODO: has testNotSmallAfter?
+        if ($fieldsToRemove === false) {
+            $fieldsToRemove = @$this->params['xmlFieldsToRemove'];
+        }
 
-        foreach ($this->params['xmlFieldsToRemove'] as $xml) {
+        $fieldsToRemove[] = 'idsubdatatable'; // TODO: had testNotSmallAfter, should still?
+
+        foreach ($fieldsToRemove as $xml) {
             $input = $this->removeXmlElement($input, $xml);
         }
         return $input;
