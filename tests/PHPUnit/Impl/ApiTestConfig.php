@@ -131,6 +131,10 @@ class ApiTestConfig
     public function __construct($params)
     {
         foreach ($params as $key => $value) {
+            if ($key == 'period') {
+                $key = 'periods';
+            }
+
             if (!property_exists($this, $key)) {
                 throw new Exception("Invalid API test property '$key'! Check your Integration tests.");
             }
