@@ -92,7 +92,7 @@ class TestRequestResponse
             $apiResponse = $this->removeXmlElement($apiResponse, 'visitServerHour');
 
             $regex = "/date=[-0-9,%Ca-z]+/"; // need to remove %2C which is encoded ,
-            $response = preg_replace($regex, 'date=', $response);
+            $apiResponse = preg_replace($regex, 'date=', $apiResponse);
         }
 
         // if idSubtable is in request URL, make sure idSubtable values are not in any urls
